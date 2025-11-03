@@ -4,7 +4,7 @@ import { Participant } from '../models/participantModel.js';
 const migrateParticipants = async () => {
     try {
         // Connect to MongoDB
-        await mongoose.connect("mongodb+srv://rsetbharatham24:ZTM8M6UsQJYgyr3T@cluster0.3krckg1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+        await mongoose.connect("mongodb+srv://bharatham_admin:5aJp8VgwFrT3KsLl@cluster0.fv2bv9b.mongodb.net/?appName=Cluster0");
         console.log('Connected to MongoDB');
 
         // Get all participants
