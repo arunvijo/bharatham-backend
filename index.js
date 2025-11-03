@@ -16,13 +16,15 @@ app.use(express.json());
 
 // Middleware for handling CORS POLICY'
 //Option 1: Allow All Origins with default of cors(*)
-app.use(cors());
+// app.use(cors()); // <-- This line should be commented out or deleted.
+
 //Option 2: Allow Custom Origins
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
-      "https://bharatham-frontend.onrender.com",
+      "http://localhost:5173", // For local testing
+      "httpss://bharatham-frontend.onrender.com", // Old senior's frontend (can be removed later)
+      "https://bharatham25.vercel.app", // <-- YOUR NEW FRONTEND IS NOW ALLOWED
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
@@ -51,3 +53,4 @@ mongoose
   .catch((error) => {
     console.log(error);
   });
+
