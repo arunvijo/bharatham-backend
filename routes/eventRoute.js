@@ -51,6 +51,8 @@ router.get("/", async (request, response) => {
   try {
     const events = await Event.find({});
 
+    console.log(`✅ Events Fetched from DB: ${events.length}`);
+
     return response.status(200).json({
       count: events.length,
       data: events,
