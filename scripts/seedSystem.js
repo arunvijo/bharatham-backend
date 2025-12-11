@@ -9,24 +9,26 @@ import { mongodbURL } from "../config.js";
 const HOUSE_NAMES = ["Rajputs", "Spartans", "Vikings", "Mughals", "Aryans"];
 const STUDENTS_PER_HOUSE = 20;
 
-// Events derived from your CSV & PDF Rules
+// Events derived from PDF Rules in 'website bharatham.pdf' and 'Copy of List Of Deadlines.pdf'
+// The structure uses: minTeamSize/maxTeamSize (for single entry size) and maxRegistrations (for house limit)
 const EVENT_DATA = [
-  // --- LITERARY PRE-EVENTS (Min 10, Max 15, Lang Rule) ---
+  // --- PRE-EVENTS (House Reg: 1, Student Limits: No) - isPreEvent: true, countsTowardsLimit: false ---
+  // Min 10, Max 15, Lang Rule
   { name: "Essay Writing", type: "Literary", category: "Pre-Event", participation: "Individual", minTeamSize: 10, maxTeamSize: 15, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Short Story", type: "Literary", category: "Pre-Event", participation: "Individual", minTeamSize: 10, maxTeamSize: 15, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Poetry", type: "Literary", category: "Pre-Event", participation: "Individual", minTeamSize: 10, maxTeamSize: 15, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
-
-  // --- ART PRE-EVENTS (Min 2, Max 5) ---
+  // Min 2, Max 5
   { name: "Caricature", type: "Art", category: "Pre-Event", participation: "Individual", minTeamSize: 2, maxTeamSize: 5, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Book Review", type: "Literary", category: "Pre-Event", participation: "Individual", minTeamSize: 2, maxTeamSize: 5, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Pencil Drawing", type: "Art", category: "Pre-Event", participation: "Individual", minTeamSize: 2, maxTeamSize: 5, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
+  { name: "Mock Press", type: "Literary", category: "Pre-Event", participation: "Individual", minTeamSize: 2, maxTeamSize: 5, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Turn Around", type: "General", category: "Pre-Event", participation: "Individual", minTeamSize: 2, maxTeamSize: 5, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
-
-  // --- SMALL PRE-EVENTS (Min 1, Max 3) ---
-  { name: "Paper Collage", type: "Art", category: "Pre-Event", participation: "Individual", minTeamSize: 1, maxTeamSize: 3, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
+  // Min 1, Max 3
+  { name: "Paper Collage", type: "Art", category: "Pre-Event", participation: "Group", minTeamSize: 1, maxTeamSize: 3, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
   { name: "Open Mic", type: "General", category: "Pre-Event", participation: "Individual", minTeamSize: 1, maxTeamSize: 3, maxRegistrations: 1, isPreEvent: true, countsTowardsLimit: false },
 
-  // --- ON-STAGE INDIVIDUAL (House Limit: 5 Entries, Student Limit: Yes) ---
+  // --- ON-STAGE INDIVIDUAL (House Reg: 5, Team Size: 1-1 by default) - countsTowardsLimit: true ---
+  // PDF (Source 45): Individual House Min 2, Max 5. Team Size is 1-1 unless stated.
   { name: "Recitation", type: "Literary", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
   { name: "Extempore", type: "Literary", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
   { name: "Light Music", type: "Music", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
@@ -34,29 +36,53 @@ const EVENT_DATA = [
   { name: "Classical Music", type: "Music", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
   { name: "Rap", type: "Music", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
   { name: "Face Painting", type: "Art", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 5, countsTowardsLimit: true },
-  { name: "Adaptune", type: "Dance", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 1, maxRegistrations: 2, countsTowardsLimit: true }, // Special Rule: Max 2
-
-  // --- COMBINED (House Limit: 3 Entries) ---
-  { name: "Classical Dance", type: "Dance", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 3, countsTowardsLimit: true },
-  { name: "Instruments", type: "Music", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, minRegistrations: 2, maxRegistrations: 3, countsTowardsLimit: true },
-
-  // --- GROUP EVENTS (House Limit: 1 Team, Team Size: 7-10 usually) ---
-  { name: "Battle of Bands", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Battle of Brahmas", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Nostalgia", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Group Folk Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Prop Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Thematic Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Duffumuttu", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  
+  // --- ON-STAGE INDIVIDUAL (Custom Limits) ---
+  { name: "Adaptune", type: "Dance", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 2, minRegistrations: 1, maxRegistrations: 2, countsTowardsLimit: true }, // PDF: Max 2 team size
+  { name: "Ambassador of RSET", type: "General", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 2, minRegistrations: 1, maxRegistrations: 2, countsTowardsLimit: true }, // PDF: Max 2 team size
+  { name: "Classical Dance forms", type: "Dance", category: "On-Stage", participation: "Individual", minTeamSize: 2, maxTeamSize: 3, minRegistrations: 1, maxRegistrations: 3, countsTowardsLimit: true }, // PDF: Min 2, Max 3 team size
+  { name: "Instruments", type: "Music", category: "On-Stage", participation: "Individual", minTeamSize: 2, maxTeamSize: 3, minRegistrations: 1, maxRegistrations: 3, countsTowardsLimit: true }, // PDF: Min 2, Max 3 team size
+  { name: "Freestyle", type: "Dance", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 2, minRegistrations: 1, maxRegistrations: 5, countsTowardsLimit: true }, // PDF: Max 2 team size
+  { name: "Duet", type: "General", category: "On-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 2, minRegistrations: 1, maxRegistrations: 5, countsTowardsLimit: true }, // PDF: Max 2 team size
+  
+  // --- ON-STAGE GROUP (House Reg: 1, Team Size: 7-10 default) - countsTowardsLimit: true ---
+  // PDF (Source 45): Group Team Min 7, Max 10. House Limit is 1 unless stated.
   { name: "Theme Show", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
-  { name: "Drama", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 9, maxTeamSize: 12, maxRegistrations: 1, countsTowardsLimit: true }, // 9+3 = 12
-  { name: "Mime", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 6, maxTeamSize: 6, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Nostalgia", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Thiruvathira", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Unplugged Eastern/western", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 7, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Duff muttu", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 8, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Drama", type: "Theatre", category: "On-Stage", participation: "Group", minTeamSize: 9, maxTeamSize: 12, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Synchronisation", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 2, maxTeamSize: 2, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Battle of bands", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Battle of brahmas", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Margam Kali", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Oppana", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 9, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Naadan Pattu", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 5, maxTeamSize: 9, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Eastern", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 5, maxTeamSize: 9, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Group song", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 5, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Mappila Pattu", type: "Music", category: "On-Stage", participation: "Group", minTeamSize: 5, maxTeamSize: 9, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Prop Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 12, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Thematic Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 12, maxRegistrations: 1, countsTowardsLimit: true },
   { name: "Quiz", type: "Literary", category: "On-Stage", participation: "Group", minTeamSize: 2, maxTeamSize: 2, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Mime", type: "Theatre", category: "On-Stage", participation: "Group", minTeamSize: 6, maxTeamSize: 6, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Group Folk Dance", type: "Dance", category: "On-Stage", participation: "Group", minTeamSize: 7, maxTeamSize: 12, maxRegistrations: 1, countsTowardsLimit: true },
+  { name: "Debate", type: "Literary", category: "On-Stage", participation: "Group", minTeamSize: 2, maxTeamSize: 2, maxRegistrations: 1, countsTowardsLimit: true },
+  
+  // --- OFF-STAGE GROUP/INDIVIDUAL (Mostly Exceptions or House Name Reg.) - countsTowardsLimit: false / high maxRegistrations ---
+  // PDF Rule 4 exceptions, plus other single-house entries.
+  { name: "Jam Sketch", type: "Art", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 3, maxRegistrations: 1, countsTowardsLimit: true }, // Team of 3, keeping original rule
+  { name: "Movie scene dubbing", type: "Theatre", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 10, maxRegistrations: 1, countsTowardsLimit: true },
+  
+  // **EXCEPTIONS (countsTowardsLimit: false)**
+  { name: "Short Film", type: "General", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 10, maxRegistrations: 100, countsTowardsLimit: false }, // Rule 4 exception
+  { name: "Adzap", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 4, maxTeamSize: 8, maxRegistrations: 100, countsTowardsLimit: false }, // Rule 4 exception
+  { name: "Making of Bharatham", type: "General", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 10, maxRegistrations: 100, countsTowardsLimit: false }, // Rule 4 exception
 
-  // --- EXCEPTIONS (No Limits) ---
-  { name: "Short Film", type: "General", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 10, maxRegistrations: 100, countsTowardsLimit: false },
-  { name: "Adzap", type: "General", category: "On-Stage", participation: "Group", minTeamSize: 4, maxTeamSize: 8, maxRegistrations: 100, countsTowardsLimit: false },
-  { name: "Making of Bharatham", type: "General", category: "Off-Stage", participation: "Group", minTeamSize: 1, maxTeamSize: 10, maxRegistrations: 100, countsTowardsLimit: false },
+  // **HOUSE NAME REGISTRATIONS (countsTowardsLimit: false, Max Reg: 100 is a high default)**
+  { name: "Photography", type: "Media", category: "Off-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, maxRegistrations: 100, countsTowardsLimit: false }, // Max 1, House Name Logic implies multiple individuals register for the House.
+  { name: "Graffiti", type: "Art", category: "Off-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 5, maxRegistrations: 100, countsTowardsLimit: false }, // Max 5, House Name Logic
+  { name: "Vogue", type: "General", category: "Off-Stage", participation: "Individual", minTeamSize: 1, maxTeamSize: 1, maxRegistrations: 100, countsTowardsLimit: false }, // Max 1, House Name Logic
 ];
 
 async function seed() {
@@ -65,16 +91,9 @@ async function seed() {
     await mongoose.connect(mongodbURL);
     console.log("Connected!");
 
-    console.log("🗑️ Clearing old data...");
-    await Event.deleteMany({});
-    await House.deleteMany({});
-    await Participant.deleteMany({});
-    await Registration.deleteMany({});
-
-    console.log("🏰 Seeding Houses...");
-    const houses = await House.insertMany(
-      HOUSE_NAMES.map(name => ({ name, captain: "TBD", viceCaptain: "TBD" }))
-    );
+    console.log("🗑️ Clearing old data (Events Only)...");
+    // Only clear Event collection to avoid wiping participants/houses
+    await Event.deleteMany({}); 
 
     console.log("📅 Seeding Events...");
     // Add default values to events
@@ -82,36 +101,15 @@ async function seed() {
       ...e,
       date: e.date || "TBD",
       venue: "Main Stage",
-      registrationEnabled: true
+      registrationEnabled: true,
+      minRegistrations: e.minRegistrations ?? 0, // Ensure minRegistrations is present
+      isPreEvent: e.isPreEvent ?? false,
+      countsTowardsLimit: e.countsTowardsLimit ?? true,
     }));
     await Event.insertMany(processedEvents);
 
-    console.log("🎓 Seeding Participants...");
-    const participants = [];
-    let uidCounter = 1;
-
-    for (const house of HOUSE_NAMES) {
-      for (let i = 0; i < STUDENTS_PER_HOUSE; i++) {
-        const uid = `U2025${String(uidCounter).padStart(3, '0')}`;
-        participants.push({
-          fullName: `${house} Student ${i + 1}`,
-          uid: uid,
-          branch: "CSE",
-          semester: "S6",
-          house: house,
-          individual: 0,
-          group: 0,
-          literary: 0
-        });
-        uidCounter++;
-      }
-    }
-    await Participant.insertMany(participants);
-
     console.log("✅ Seeding Complete!");
-    console.log(`- ${HOUSE_NAMES.length} Houses`);
-    console.log(`- ${processedEvents.length} Events`);
-    console.log(`- ${participants.length} Participants`);
+    console.log(`- ${processedEvents.length} Events added/updated.`);
     
     process.exit();
   } catch (error) {

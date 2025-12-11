@@ -19,7 +19,7 @@ router.post("/", async (request, response) => {
     ) {
       return response.status(400).send({
         message:
-          "Send all required fields: name, participation, type, category, date, venue, maxIndividualLimit, minIndividualLimit, teamLimit",
+          "Send all required fields: name, participation, type, category, date, venue, minIndividualLimit, maxIndividualLimit, teamLimit",
       });
     }
 
@@ -31,9 +31,17 @@ router.post("/", async (request, response) => {
       category: request.body.category,
       date: request.body.date,
       venue: request.body.venue,
-      maxIndividualLimit: request.body.maxIndividualLimit,
-      minIndividualLimit: request.body.minIndividualLimit,
-      teamLimit: request.body.teamLimit,
+      
+      // *** MAPPING OLD FRONTEND FIELDS TO NEW BACKEND MODEL FIELDS ***
+      minTeamSize: request.body.minIndividualLimit, 
+      maxTeamSize: request.body.maxIndividualLimit, 
+      maxRegistrations: request.body.teamLimit,     
+      // Default new required fields
+      minRegistrations: request.body.minRegistrations ?? 0, 
+      isPreEvent: request.body.isPreEvent ?? false, 
+      countsTowardsLimit: request.body.countsTowardsLimit ?? true, 
+      // End mapping
+      
       registrationEnabled: request.body.registrationEnabled ?? true // Default to true if not provided
     };
 
@@ -87,13 +95,13 @@ router.put("/:id", async (request, response) => {
       !request.body.category ||
       !request.body.date ||
       !request.body.venue ||
-      !request.body.maxIndividualLimit ||
-      !request.body.minIndividualLimit ||
-      !request.body.teamLimit
+      !request.body.maxIndividualLimit || 
+      !request.body.minIndividualLimit || 
+      !request.body.teamLimit 
     ) {
       return response.status(400).send({
         message:
-          "Send all required fields: name, participation, type, category, date, venue, maxIndividualLimit, minIndividualLimit, teamLimit",
+          "Send all required fields: name, participation, type, category, date, venue, minIndividualLimit, maxIndividualLimit, teamLimit",
       });
     }
 
@@ -101,8 +109,25 @@ router.put("/:id", async (request, response) => {
 
     const updateData = {
       ...request.body,
+      // *** MAPPING OLD FRONTEND FIELDS TO NEW BACKEND MODEL FIELDS ***
+      minTeamSize: request.body.minIndividualLimit,
+      maxTeamSize: request.body.maxIndividualLimit,
+      maxRegistrations: request.body.teamLimit,
+      
+      // Pull missing data directly from request body or provide sane defaults/preserve old.
+      minRegistrations: request.body.minRegistrations ?? 0, 
+      isPreEvent: request.body.isPreEvent ?? false,
+      countsTowardsLimit: request.body.countsTowardsLimit ?? true,
+      // End mapping
+
       registrationEnabled: request.body.registrationEnabled ?? true // Default to true if not provided
     };
+    
+    // Remove the unused fields from the object before passing to Mongoose to prevent warnings/errors
+    delete updateData.minIndividualLimit;
+    delete updateData.maxIndividualLimit;
+    delete updateData.teamLimit;
+
 
     const result = await Event.findByIdAndUpdate(id, updateData);
     if (!result) {
