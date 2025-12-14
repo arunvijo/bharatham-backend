@@ -8,7 +8,7 @@ import { mongodbURL } from "../config.js";
 const require = createRequire(import.meta.url);
 const XLSX = require("xlsx"); 
 
-const DATA_DIR = path.join(process.cwd(), "../student_data"); 
+const DATA_DIR = path.join(process.cwd(), "student_data"); 
 const CURRENT_YEAR = 2025;
 const HOUSE_ORDER = ["Spartans", "Mughals", "Vikings", "Aryans", "Rajputs"];
 
