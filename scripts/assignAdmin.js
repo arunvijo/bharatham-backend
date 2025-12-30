@@ -5,8 +5,9 @@ import { mongodbURL } from "../config.js";       // Ensure path is correct
 // --- CONFIGURATION ---
 // Add all the Auth0 nicknames you want to be Admins here
 const ADMIN_LIST = [
-  "abhishikthsmattam",
-  "arunvijo2004",
+  // "abhishikthsmattam",
+  // "arunvijo2004",
+  "U2208046"
 ]; 
 
 async function makeAdmins() {
