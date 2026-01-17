@@ -7,7 +7,7 @@ import { mongodbURL } from "../config.js";       // Ensure path is correct
 const ADMIN_LIST = [
   // "abhishikthsmattam",
   // "arunvijo2004",
-  "U2208046"
+  "u2205047"
 ]; 
 
 async function makeAdmins() {
