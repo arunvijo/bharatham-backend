@@ -5,100 +5,113 @@ import { Participant } from "../models/participantModel.js";
 
 const router = express.Router();
 
-// Route for save new registration
+/**
+ * @route   POST /registration
+ * @desc    Register a team or individual for an event
+ */
 router.post("/", async (request, response) => {
   try {
     const { event: eventName, house, participants } = request.body;
-    console.log(`[REG-POST] Starting registration for: ${eventName} (${house}) with ${participants.length} participants.`);
+    console.log(`[REG-POST] Request: ${eventName} (${house}) - ${participants?.length} participants`);
 
+    // --- 1. Basic Validation ---
     if (!eventName || !house || !participants || participants.length === 0) {
-      console.log("[REG-POST] Validation Failed: Missing fields or empty participant list.");
       return response.status(400).send({
-        message: "Send all required fields: event, house, and at least one participant.",
+        message: "Missing required fields: event, house, and participants.",
       });
     }
 
-    // 1. Fetch Event Details to get Limits
+    // --- 2. Fetch Event Rules ---
     const eventObj = await Event.findOne({ name: eventName });
-
     if (!eventObj) {
-      console.log(`[REG-POST] Validation Failed: Event '${eventName}' not found.`);
       return response.status(404).send({ message: `Event '${eventName}' not found` });
     }
     
-    // --- FIX: Check for House Entry Flag ---
+    // Check if this is a "House Entry" (Managed by Captains, usually unlimited/special)
     const isHouseEntry = participants.some(p => p.isHouseEntry === true);
 
-    // 2. Check Team Size / Bulk Participation Limits
-    const minSize = eventObj.minTeamSize;
-    const maxSize = eventObj.maxTeamSize;
-    
-    // Logic: If it is a House Entry, we ignore the MINIMUM limit (because 1 < 4 is expected).
-    // We still respect MAX limit check if needed, but usually House Entry is just 1 dummy item.
+    // --- 3. Check Team Size Limits ---
+    // (Skip for House Entries as they may be placeholders)
     if (!isHouseEntry) {
+        const minSize = eventObj.minTeamSize || 1;
+        const maxSize = eventObj.maxTeamSize || 100;
+        
         if (participants.length < minSize || participants.length > maxSize) {
-            console.log(`[REG-POST] Validation Failed: Team size (${participants.length}) outside limits (${minSize}-${maxSize}).`);
             return response.status(400).send({
-                message: `Participation for ${eventName} requires between ${minSize} and ${maxSize} participants per entry.`,
+                message: `Invalid Team Size. ${eventName} requires between ${minSize} and ${maxSize} participants.`,
             });
         }
     }
-    console.log(`[REG-POST] Validation Passed: Team size is valid.`);
 
-
-    // 3. Check House Registration Limit
-    const existingRegistrations = await Registration.countDocuments({
+    // --- 4. Check House Registration Limit ---
+    // (Applies to everyone to prevent spamming entries)
+    const existingHouseRegs = await Registration.countDocuments({
       event: eventName,
       house: house,
     });
-    const maxRegs = eventObj.maxRegistrations;
+    const maxRegs = eventObj.maxRegistrations || 1;
 
-    if (existingRegistrations >= maxRegs) {
-      console.log(`[REG-POST] Validation Failed: House limit (${existingRegistrations}/${maxRegs}) reached.`);
+    if (existingHouseRegs >= maxRegs) {
       return response.status(400).send({
-        message: `Limit reached: ${house} has already registered the maximum number of times (${maxRegs}) for ${eventName}.`,
+        message: `House Limit Reached: ${house} has already reached the limit of ${maxRegs} entries for ${eventName}.`,
       });
     }
 
+    // --- 5. Check for Duplicate Student Registration ---
+    // (Ensure a student isn't joining the same event twice in different teams)
+    if (!isHouseEntry) {
+        // Extract UIDs (University IDs)
+        const uids = participants.map(p => p.uid).filter(Boolean);
+        
+        // Find if any of these UIDs exist in another registration for this SAME event
+        const duplicateCheck = await Registration.findOne({
+            event: eventName,
+            "participants.uid": { $in: uids }
+        });
 
-    // 4. Check Student Individual/Group Limits (The 5/3 Rule)
-    // SKIP THIS CHECK FOR HOUSE ENTRIES (Dummy participants don't have database records to check)
+        if (duplicateCheck) {
+            // Identify who is the duplicate for the error message
+            const dupeStudent = duplicateCheck.participants.find(p => uids.includes(p.uid));
+            return response.status(400).send({
+                message: `Duplicate Entry: ${dupeStudent?.fullName || "Student"} is already registered for ${eventName}.`,
+            });
+        }
+    }
+
+    // --- 6. Check Student Participation Limits (5/3 Rule) ---
+    // (Skip if event doesn't count towards limit OR if it's a House Entry)
     if (eventObj.countsTowardsLimit && !isHouseEntry) {
       const updateField = eventObj.participation === "Individual" ? "individual" : "group";
       const limit = eventObj.participation === "Individual" ? 5 : 3;
 
       for (const p of participants) {
-        // Find by _id (if sent by frontend)
+        // Find student in DB to check current count
         const participantDb = await Participant.findOne({ _id: p._id || p.uid });
-        if (!participantDb) {
-            console.log(`[REG-POST] Warning: Participant ID ${p._id || p.uid} not found in database. Skipping limit check.`);
-            continue;
-        }
-
-        const currentCount = participantDb[updateField] || 0;
-
-        if (currentCount >= limit) {
-          console.log(`[REG-POST] Validation Failed: Student ${participantDb.fullName} at limit.`);
-          return response.status(400).send({
-            message: `Limit Reached: Participant ${participantDb.fullName} has already registered for ${limit} ${eventObj.participation} events.`,
-          });
+        
+        if (participantDb) {
+            const currentCount = participantDb[updateField] || 0;
+            if (currentCount >= limit) {
+                return response.status(400).send({
+                    message: `Limit Reached: ${participantDb.fullName} has already registered for ${limit} ${eventObj.participation} events.`,
+                });
+            }
         }
       }
     } 
 
-    // 5. Check Literary Diversity Rule
-    // SKIP FOR HOUSE ENTRY (No language data usually)
+    // --- 7. Check Literary Diversity Rule ---
+    // (Essay/Story/Poetry needs 2+ languages)
     const diversityRuleEvents = ["Essay Writing", "Short Story", "Poetry"];
     if (diversityRuleEvents.includes(eventName) && !isHouseEntry) {
       const languages = new Set(participants.map((p) => p.language).filter(Boolean));
       if (languages.size < 2) {
         return response.status(400).send({
-          message: `${eventName} registration requires participants from at least 2 different languages.`,
+          message: `${eventName} requires participants from at least 2 different languages.`,
         });
       }
     }
 
-    // 6. Create Registration
+    // --- 8. Create Registration ---
     const newRegistration = {
       event: eventName,
       house: house,
@@ -106,10 +119,9 @@ router.post("/", async (request, response) => {
     };
 
     const registration = await Registration.create(newRegistration);
-    console.log(`[REG-POST] Registration created successfully. ID: ${registration._id}`);
+    console.log(`[REG-POST] Created Registration ID: ${registration._id}`);
 
-    // 7. Update Participant Counters
-    // SKIP FOR HOUSE ENTRY
+    // --- 9. Increment Student Counters ---
     if (eventObj.countsTowardsLimit && !isHouseEntry) {
       const updateField =
         eventObj.participation === "Individual"
@@ -120,8 +132,8 @@ router.post("/", async (request, response) => {
 
       if (updateField) {
         for (const p of participants) {
-          // Only update if it's a real mongo ID
-          if (p._id && p._id.length === 24) { 
+          // Update only valid linked students
+          if (p._id) { 
              await Participant.findByIdAndUpdate(p._id, { $inc: updateField });
           }
         }
@@ -129,14 +141,17 @@ router.post("/", async (request, response) => {
     }
 
     return response.status(201).send(registration);
+
   } catch (error) {
-    console.log(`[REG-POST] Critical Error: ${error.message}`);
-    response.status(500).send({ message: `Internal Server Error: ${error.message}` });
+    console.error(`[REG-POST] Error: ${error.message}`);
+    response.status(500).send({ message: error.message });
   }
 });
 
-// ... (Rest of the file remains unchanged: GET, PUT, DELETE routes) ...
-// Route for getting All registrations from database
+/**
+ * @route   GET /registration
+ * @desc    Get all registrations
+ */
 router.get("/", async (request, response) => {
   try {
     const registrations = await Registration.find({});
@@ -146,6 +161,10 @@ router.get("/", async (request, response) => {
   }
 });
 
+/**
+ * @route   GET /registration/by-house/:house
+ * @desc    Get registrations for a specific house
+ */
 router.get("/by-house/:house", async (request, response) => {
   try {
     const { house } = request.params;
@@ -156,10 +175,16 @@ router.get("/by-house/:house", async (request, response) => {
   }
 });
 
+/**
+ * @route   GET /registration/by-event/:id
+ * @desc    Get registrations for a specific event
+ */
 router.get("/by-event/:id", async (request, response) => {
   try {
     const { id } = request.params;
     const event = await Event.findOne({ _id: id });
+    if (!event) return response.status(404).send({ message: "Event not found" });
+
     const registrations = await Registration.find({ event: event.name });
     return response.status(200).json({ count: registrations.length, data: registrations });
   } catch (error) {
@@ -167,6 +192,10 @@ router.get("/by-event/:id", async (request, response) => {
   }
 });
 
+/**
+ * @route   GET /registration/by-participant/:id
+ * @desc    Get registrations where a specific student is involved
+ */
 router.get("/by-participant/:id", async (request, response) => {
   try {
     const { id } = request.params;
@@ -177,10 +206,16 @@ router.get("/by-participant/:id", async (request, response) => {
   }
 });
 
+/**
+ * @route   GET /registration/by-house-event/:id/:house
+ * @desc    Get specific registration for House X in Event Y
+ */
 router.get("/by-house-event/:id/:house", async (request, response) => {
   try {
     const { house, id } = request.params;
     const event = await Event.findById(id);
+    if (!event) return response.status(404).send({ message: "Event not found" });
+
     const registrations = await Registration.find({ house: house, event: event.name });
     return response.status(200).json({ count: registrations.length, data: registrations });
   } catch (error) {
@@ -188,6 +223,10 @@ router.get("/by-house-event/:id/:house", async (request, response) => {
   }
 });
 
+/**
+ * @route   GET /registration/:id
+ * @desc    Get single registration by ID
+ */
 router.get("/:id", async (request, response) => {
   try {
     const { id } = request.params;
@@ -198,6 +237,10 @@ router.get("/:id", async (request, response) => {
   }
 });
 
+/**
+ * @route   PUT /registration/:id
+ * @desc    Update a registration
+ */
 router.put("/:id", async (request, response) => {
   try {
     if (!request.body.event || !request.body.house || !request.body.participants) {
@@ -212,13 +255,49 @@ router.put("/:id", async (request, response) => {
   }
 });
 
+/**
+ * @route   DELETE /registration/:id
+ * @desc    Delete registration AND Decrement Student Counters
+ */
 router.delete("/:id", async (request, response) => {
   try {
     const { id } = request.params;
-    const result = await Registration.findByIdAndDelete(id);
-    if (!result) return response.status(404).send({ message: "Registration not found" });
-    return response.status(200).json({ message: "Registration deleted successfully" });
+
+    // 1. Find the registration first (so we know who was in it)
+    const registration = await Registration.findById(id);
+    if (!registration) {
+      return response.status(404).send({ message: "Registration not found" });
+    }
+
+    // 2. Find the Event (to know if it was Individual/Group and if it counted)
+    const eventObj = await Event.findOne({ name: registration.event });
+    
+    // Check if it was a House Entry (these didn't increment, so shouldn't decrement)
+    const isHouseEntry = registration.participants.some(p => p.isHouseEntry === true);
+
+    // 3. Decrement Counters Logic
+    if (eventObj && eventObj.countsTowardsLimit && !isHouseEntry) {
+        const updateField = eventObj.participation === "Individual" ? "individual" : "group";
+        
+        console.log(`[REG-DELETE] Decrementing '${updateField}' count for ${registration.participants.length} students.`);
+
+        // Loop through students and subtract 1 from their count
+        for (const p of registration.participants) {
+            if (p._id) {
+                await Participant.findByIdAndUpdate(p._id, { 
+                    $inc: { [updateField]: -1 } // The Fix: Decrement by 1
+                });
+            }
+        }
+    }
+
+    // 4. Permanently Delete the Registration
+    await Registration.findByIdAndDelete(id);
+
+    return response.status(200).json({ message: "Registration deleted and counters updated successfully" });
+
   } catch (error) {
+    console.error(`[REG-DELETE] Error: ${error.message}`);
     response.status(500).send({ message: error.message });
   }
 });
