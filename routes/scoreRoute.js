@@ -110,19 +110,22 @@ router.post("/", async (request, response) => {
       });
     }
 
-    // 2. Validate: Check if this Position is already taken for this Event
-    const positionTaken = await Score.findOne({
-      "event.name": event.name,
-      position: position
-    });
+    /* --- LOGIC CHANGE: Allow Shared Positions ---
+       The block below previously prevented two entries from having the same position.
+       It is now removed so you can have ties (e.g. two people getting 2nd place).
+    */
+    // const positionTaken = await Score.findOne({
+    //   "event.name": event.name,
+    //   position: position
+    // });
 
-    if (positionTaken) {
-      return response.status(400).send({
-        message: `Conflict: ${position} Place is already assigned to ${positionTaken.house}. Please delete the existing score first.`
-      });
-    }
+    // if (positionTaken) {
+    //   return response.status(400).send({
+    //     message: `Conflict: ${position} Place is already assigned to ${positionTaken.house}. Please delete the existing score first.`
+    //   });
+    // }
 
-    // 3. Validate: Check if this Student/Team has already won a prize in this event
+    // 2. Validate: Check if this Student/Team has already won a prize in this event
     if (participant && participant.uid) {
         const studentAlreadyWon = await Score.findOne({
             "event.name": event.name,
@@ -136,7 +139,7 @@ router.post("/", async (request, response) => {
         }
     }
 
-    // 4. Create the Score Entry
+    // 3. Create the Score Entry
     const newScore = {
       event,       
       house,       
@@ -144,7 +147,7 @@ router.post("/", async (request, response) => {
       points,      
       participant, 
       registrationId,
-      registration, // <--- This was missing!
+      registration,
       reason
     };
 
@@ -171,16 +174,18 @@ router.put("/:id", async (request, response) => {
       return response.status(400).send({ message: "Send all required fields" });
     }
 
-    // Check for duplicates (excluding self)
-    const existingScore = await Score.findOne({
-      _id: { $ne: id },
-      "event.name": request.body.event.name,
-      position: request.body.position
-    });
+    /* --- LOGIC CHANGE: Allow Shared Positions ---
+       Removed the check that prevents editing a score to a position held by another.
+    */
+    // const existingScore = await Score.findOne({
+    //   _id: { $ne: id },
+    //   "event.name": request.body.event.name,
+    //   position: request.body.position
+    // });
 
-    if (existingScore) {
-       return response.status(400).send({ message: `Conflict: Position ${request.body.position} already exists.` });
-    }
+    // if (existingScore) {
+    //    return response.status(400).send({ message: `Conflict: Position ${request.body.position} already exists.` });
+    // }
 
     const result = await Score.findByIdAndUpdate(id, request.body, { new: true });
     
