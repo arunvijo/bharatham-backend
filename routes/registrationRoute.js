@@ -104,11 +104,11 @@ router.post("/", async (request, response) => {
     const diversityRuleEvents = ["Essay Writing", "Short Story", "Poetry"];
     if (diversityRuleEvents.includes(eventName) && !isHouseEntry) {
       const languages = new Set(participants.map((p) => p.language).filter(Boolean));
-      if (languages.size < 2) {
-        return response.status(400).send({
-          message: `${eventName} requires participants from at least 2 different languages.`,
-        });
-      }
+      // if (languages.size < 1) {
+      //   return response.status(400).send({
+      //     message: `${eventName} requires participants from at least 2 different languages.`,
+      //   });
+      // }
     }
 
     // --- 8. Create Registration ---
